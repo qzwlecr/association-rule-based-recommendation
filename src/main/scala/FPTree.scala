@@ -9,12 +9,11 @@ class FPTree extends Serializable {
 
   private val summaries: mutable.Map[Int, Summary] = mutable.Map.empty
 
-  def transaction = getTransactions(root)
+  def transaction: Iterator[(List[Int], Int)] = getTransactions(root)
 
   def merge(other: FPTree): FPTree = {
-    other.transaction.foreach {
-      case (t, c) =>
-        add(t, c)
+    other.transaction.foreach { case (t, c) =>
+      add(t, c)
     }
     this
   }
@@ -22,17 +21,16 @@ class FPTree extends Serializable {
   def add(t: Iterable[Int], count: Int = 1): FPTree = {
     var curr = root
     curr.count += count
-    t.foreach {
-      item =>
-        val summary = summaries.getOrElseUpdate(item, new Summary)
-        summary.count += count
-        val child = curr.children.getOrElseUpdate(item, {
-          val newNode = new Node(curr, item)
-          summary.nodes += newNode
-          newNode
-        })
-        child.count += count
-        curr = child
+    t.foreach { item =>
+      val summary = summaries.getOrElseUpdate(item, new Summary)
+      summary.count += count
+      val child = curr.children.getOrElseUpdate(item, {
+        val newNode = new Node(curr, item)
+        summary.nodes += newNode
+        newNode
+      })
+      child.count += count
+      curr = child
     }
     this
   }
@@ -61,7 +59,7 @@ class FPTree extends Serializable {
         node =>
           var t = List.empty[Int]
           var curr = node.parent
-          while (!curr.isRoot) {
+          while (curr.parent != null) {
             t = curr.item :: t
             curr = curr.parent
           }
@@ -73,13 +71,11 @@ class FPTree extends Serializable {
 
   private def getTransactions(node: Node): Iterator[(List[Int], Int)] = {
     var count = node.count
-    node.children.iterator.flatMap {
-      case (item, child) =>
-        getTransactions(child).map {
-          case (t, c) =>
-            count -= c
-            (item :: t, c)
-        }
+    node.children.iterator.flatMap { case (item, child) =>
+      getTransactions(child).map { case (t, c) =>
+        count -= c
+        (item :: t, c)
+      }
     } ++ {
       if (count > 0) {
         Iterator.single((Nil, count))
@@ -92,12 +88,7 @@ class FPTree extends Serializable {
   class Node(val parent: Node,
              var item: Int = 0,
              val children: mutable.Map[Int, Node] = mutable.Map.empty[Int, Node],
-             var count: Int = 0) extends Serializable {
-
-    def isRoot = parent == null
-
-    def isLeaf = children == null
-  }
+             var count: Int = 0) extends Serializable
 
   class Summary(val nodes: ListBuffer[Node] = ListBuffer.empty[Node], var count: Int = 0) extends Serializable
 

@@ -23,7 +23,11 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     val numParts = if (numPartitions > 0) numPartitions else data.partitions.length
     val partitioner = new HashPartitioner(numParts)
     val freqItems = genFreqItems(data, minCount, partitioner)
-    printf("First level of Items = %d\n",freqItems.size)
+    //    println(s"First level Item Number = ${freqItems.length}")
+    //    for (i <- freqItems.indices) {
+    //      println(freqItems(i))
+    //    }
+    //    println()
     genFreqItemsets(data, minCount, freqItems, partitioner)
   }
 
@@ -46,16 +50,13 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     val itemToRank = freqItems.zipWithIndex.toMap
     data.flatMap { transaction =>
       genCondTransactions(transaction, itemToRank, partitioner)
-    }
-      .aggregateByKey(new FPTree, partitioner.numPartitions) (
-        (tree, transaction) => tree.add(transaction, 1),
-        (tree1, tree2) => tree1.merge(tree2)
-      )
-      .flatMap {
+    }.aggregateByKey(new FPTree, partitioner.numPartitions)(
+      (tree, transaction) => tree.add(transaction),
+      (tree1, tree2) => tree1.merge(tree2)
+    ).flatMap {
       case (part, tree) =>
         tree.extract(minCount, x => partitioner.getPartition(x) == part)
-    }
-      .map {
+    }.map {
       case (ranks, count) =>
         new FreqItemSet(ranks.map(i => freqItems(i)).toArray, count)
     }
@@ -64,17 +65,17 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
   private def genCondTransactions(transaction: Array[Int],
                                   itemToRank: Map[Int, Int],
                                   partitioner: Partitioner): mutable.Map[Int, Array[Int]] = {
-    val answer: mutable.Map[Int, Array[Int]] = mutable.Map.empty
+    val output = mutable.Map.empty[Int, Array[Int]]
     val filtered = transaction.flatMap(itemToRank.get)
     java.util.Arrays.sort(filtered)
-    for (i <- 0 until filtered.length by -1) {
+    for (i <- filtered.length to(0, -1)) {
       val item = filtered(i)
       val part = partitioner.getPartition(item)
-      if (!answer.contains(part)) {
-        answer(part) = filtered.slice(0, i + 1)
+      if (!output.contains(part)) {
+        output(part) = filtered.slice(0, i + 1)
       }
     }
-    answer
+    output
   }
 }
 
