@@ -10,19 +10,11 @@ object Main {
     val fileTemp = args(2)
     val sc = new SparkContext(new SparkConf().setAppName("Association Rules"))
     //    sc.setLogLevel("WARN")
-    val originData = sc.textFile(fileInput + "/D.dat", 30)
+    val originData = sc.textFile(fileInput + "/D.dat", 900)
     val transactions: RDD[Array[Int]] = originData.map(s => s.trim.split(' ').map(x => x.toInt))
-    //    println(s"transactions sample: ")
-    //    val sample = transactions.takeSample(false, 10)
-    //    for(i <- 0 to 9){
-    //      for(j <- 0 to sample(i).length - 1){
-    //        print(" "+sample(i)(j))
-    //      }
-    //      println()
-    //    }
-    val freqItems = new FPGrowth().setMinSupport(0.092).setNumPartitions(30).run(transactions)
+    val freqItems = new FPGrowth().setMinSupport(0.092).setNumPartitions(900).run(transactions)
     freqItems.persist()
-    //    freqItems.saveAsTextFile(fileOutput + "/D.dat")
+    freqItems.saveAsTextFile(fileOutput + "/D.dat")
 
     println(s"Count = ${freqItems.count()}")
 

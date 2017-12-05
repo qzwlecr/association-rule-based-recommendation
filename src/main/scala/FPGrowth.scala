@@ -68,7 +68,7 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     val output = mutable.Map.empty[Int, Array[Int]]
     val filtered = transaction.flatMap(itemToRank.get)
     java.util.Arrays.sort(filtered)
-    for (i <- filtered.length to(0, -1)) {
+    for (i <- filtered.length-1 to (0, -1)) {
       val item = filtered(i)
       val part = partitioner.getPartition(item)
       if (!output.contains(part)) {
