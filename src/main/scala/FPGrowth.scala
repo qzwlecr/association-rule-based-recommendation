@@ -28,7 +28,7 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     //      println(freqItems(i))
     //    }
     //    println()
-    genFreqItemsets(data, minCount, freqItems, partitioner)
+    (freqItems,genFreqItemsets(data, minCount, freqItems, partitioner))
   }
 
   private def genFreqItems(data: RDD[Array[Int]],
