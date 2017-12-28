@@ -17,7 +17,8 @@ package AR {
       val itemsWithFreq = freqItems._2.map(x => (x.items.toList, x.freq)).collect()
       val itemsWithFreqMap = itemsWithFreq.toMap
 //Rules Tree Test:
-      var root: RulesTree = Node(-1, Nil)
+
+      var root: RulesTree = Node(-1, 0, Nil)
 //      val root2 = root1.insert(Nil,4,0.5)
 //      val root3 = root2.insert(List(1,2,3),5,0.3)
 //      val root4 = root3.insert(List(1,2,5),6,0.4)
