@@ -17,18 +17,13 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     this
   }
 
-  def run(data: RDD[Array[Int]]): (Array[Int],RDD[FreqItemSet]) = {
+  def run(data: RDD[Array[Int]]): (Array[Int], RDD[FreqItemSet]) = {
     val count = data.count()
     val minCount = math.ceil(minSupport * count).toInt
-    val numParts = if (numPartitions > 0) numPartitions else data.partitions.length
+    val numParts = numPartitions
     val partitioner = new HashPartitioner(numParts)
     val freqItems = genFreqItems(data, minCount, partitioner)
-    //    println(s"First level Item Number = ${freqItems.length}")
-    //    for (i <- freqItems.indices) {
-    //      println(freqItems(i))
-    //    }
-    //    println()
-    (freqItems,genFreqItemsets(data, minCount, freqItems, partitioner))
+    (freqItems, genFreqItemsets(data, minCount, freqItems, partitioner))
   }
 
   private def genFreqItems(data: RDD[Array[Int]],
@@ -68,7 +63,7 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
     val output = mutable.Map.empty[Int, Array[Int]]
     val filtered = transaction.flatMap(itemToRank.get)
     java.util.Arrays.sort(filtered)
-    for (i <- filtered.length-1 to (0, -1)) {
+    for (i <- filtered.length - 1 to(0, -1)) {
       val item = filtered(i)
       val part = partitioner.getPartition(item)
       if (!output.contains(part)) {
