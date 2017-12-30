@@ -17,17 +17,17 @@ abstract class RulesTree() {
         val max_conf = max(current_conf, conf)
         keys match {
           case Nil => Node(v, max_conf, node_insert_to_list(children, Leaf(rhs, conf)))
-          case h :: tail =>
-            findInList(h, Nil, children) match {
+          case head :: tail =>
+            find_in_list(head, Nil, children) match {
               case None =>
-                val newTree = Empty.insert_helper(tail, good)
+                val newTree = Node(head, max_conf, Nil).insert_helper(tail, good)
                 Node(v, max_conf, node_insert_to_list(children, newTree))
               case Some((left, child, right)) =>
                 val newTree = child.insert_helper(tail, good)
                 Node(v, max_conf, node_insert_to_list(left.reverse ++ right, newTree))
             }
         }
-      case Leaf(_, _) => throw new RuntimeException("fuck you")
+      //case Leaf(_, _) => throw new RuntimeException("fuck you")
     }
   }
 
@@ -49,14 +49,14 @@ abstract class RulesTree() {
     }
   }
 
-  def findInList(target: Int, visited_l: List[RulesTree], l: List[RulesTree])
+  def find_in_list(target: Int, visited_l: List[RulesTree], l: List[RulesTree])
   : Option[(List[RulesTree], RulesTree, List[RulesTree])] = {
     l match {
       case Nil => None
       case tree :: tail => {
         tree match {
           case Node(key, _, _) if key == target => Some(visited_l, tree, tail)
-          case _ => findInList(target, tree :: visited_l, tail)
+          case _ => find_in_list(target, tree :: visited_l, tail)
         }
       }
     }
@@ -64,13 +64,13 @@ abstract class RulesTree() {
 
   def find_helper(keys: Set[Int], found: Goods): Goods = {
     val (_, found_conf) = found
-    val good_max = (a: Goods, b: Goods) => if (a._2 > b._2) a else b
+    val good_max = (a: Goods, b: Goods) => if (if (a._2 == b._2) a._1 < b._1 else a._2 > b._2 ) a else b
     this match {
       case Node(v, max_conf, children) if max_conf >= found_conf =>
         v match {
           case key if key == -1 || keys.contains(key) => children.aggregate(found)(
             (last, child) => child.find_helper(keys, last),
-            (a: Goods, b: Goods) => if (a._2 > b._2) a else b
+            good_max
           )
           case _ => found
         }
