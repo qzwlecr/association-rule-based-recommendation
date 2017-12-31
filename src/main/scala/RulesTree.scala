@@ -68,7 +68,7 @@ abstract class RulesTree() {
     this match {
       case Node(v, max_conf, children) if max_conf >= found_conf =>
         v match {
-          case key if key == -1 || keys.contains(key) => children.aggregate(found)(
+          case key if key == 0 || keys.contains(key) => children.aggregate(found)(
             (last, child) => child.find_helper(keys, last),
             good_max
           )
@@ -80,7 +80,7 @@ abstract class RulesTree() {
   }
 
   def find(keys: Set[Int]): Goods = {
-    find_helper(keys, (-1, 0.0))
+    find_helper(keys, (0, 0.0))
   }
 }
 

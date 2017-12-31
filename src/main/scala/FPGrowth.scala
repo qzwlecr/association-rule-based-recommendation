@@ -53,8 +53,8 @@ class FPGrowth(private var minSupport: Double = 0.092, private var numPartitions
         tree.extract(minCount, x => partitioner.getPartition(x) == part)
     }.map {
       case (ranks, count) =>
-        new FreqItemSet(ranks.map(i => freqItems(i)).toArray, count)
-    }
+        new FreqItemSet(ranks.sorted.map(i => freqItems(i)).toArray, count)
+    }.sortBy(x=>x.items.toString)
   }
 
   private def genCondTransactions(transaction: Array[Int],

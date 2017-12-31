@@ -10,21 +10,21 @@ package AR {
       val fileTemp = args(2)
       val conf = new SparkConf().setAppName("Association Rules")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        .set("spark.driver.maxResultSize", "0")
-
+        .set("spark.network.timeout","3000")
+        .set("spark.memory.userLegacyMode","true")
+        .set("spark.shuffle.memoryFraction","0.6")
       conf.registerKryoClasses(Array(classOf[FPTree]))
       val sc = new SparkContext(conf)
-      val originData = sc.textFile(fileInput + "/D.dat", 300)
+      val originData = sc.textFile(fileInput + "/D.dat", 1800)
 
       val transactions: RDD[Array[Int]] = originData.map(s => s.trim.split(' ').map(x => x.toInt)).cache()
-      val model = new FPGrowth().setMinSupport(0.15).setNumPartitions(300).run(transactions)
-      println(s"${model._2.count()}")
+      val model = new FPGrowth().setMinSupport(0.092).setNumPartitions(900).run(transactions)
+      model._2.saveAsTextFile(fileOutput+"/D.dat")
 
-      val items = model._1.zipWithIndex.toMap
-      val itemsWithFreq = model._2.map(x => (x.items.sortBy(x=>items(x)).toList, x.freq)).collect()
+      val itemsWithFreq = model._2.map(x => (x.items.toList, x.freq)).collect()
       val itemsWithFreqMap = itemsWithFreq.toMap
 
-      var root: RulesTree = Node(-1, 0.0, Nil)
+      var root: RulesTree = Node(0, 0.0, Nil)
       for ((items, son) <- itemsWithFreq) {
         if (items.length > 1) {
           items.foreach(
@@ -37,9 +37,9 @@ package AR {
       }
 
       val tree = sc.broadcast(root)
-      val userData = sc.textFile(fileInput + "/U.dat", 200)
+      val userData = sc.textFile(fileInput + "/U.dat", 300)
       val users = userData.map(s => s.trim.split(' ').map(x => x.toInt)).map(x => x.intersect(model._1))
-      val answer = users.map(x => tree.value.find(x.toSet)).saveAsTextFile(fileOutput + "/U.dat")
+      users.map(x => tree.value.find(x.toSet)._1).saveAsTextFile(fileOutput + "/U.dat")
 
     }
   }
