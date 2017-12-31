@@ -10,21 +10,21 @@ abstract class RulesTree() {
     this match {
       case Empty =>
         keys match {
-          case Nil => Leaf(rhs, conf)
-          case h :: t => Node(h, conf, List(Empty.insert_helper(t, good)))
+          case Nil => RuleLeaf(rhs, conf)
+          case h :: t => RuleNode(h, conf, List(Empty.insert_helper(t, good)))
         }
-      case Node(v, current_conf, children) =>
+      case RuleNode(v, current_conf, children) =>
         val max_conf = max(current_conf, conf)
         keys match {
-          case Nil => Node(v, max_conf, node_insert_to_list(children, Leaf(rhs, conf)))
+          case Nil => RuleNode(v, max_conf, node_insert_to_list(children, RuleLeaf(rhs, conf)))
           case head :: tail =>
             find_in_list(head, Nil, children) match {
               case None =>
-                val newTree = Node(head, max_conf, Nil).insert_helper(tail, good)
-                Node(v, max_conf, node_insert_to_list(children, newTree))
+                val newTree = RuleNode(head, max_conf, Nil).insert_helper(tail, good)
+                RuleNode(v, max_conf, node_insert_to_list(children, newTree))
               case Some((left, child, right)) =>
                 val newTree = child.insert_helper(tail, good)
-                Node(v, max_conf, node_insert_to_list(left.reverse ++ right, newTree))
+                RuleNode(v, max_conf, node_insert_to_list(left.reverse ++ right, newTree))
             }
         }
       //case Leaf(_, _) => throw new RuntimeException("fuck you")
@@ -37,8 +37,8 @@ abstract class RulesTree() {
 
   def node_insert_to_list(sorted: List[RulesTree], item: RulesTree): List[RulesTree] = {
     def get_conf = (tree: RulesTree) => tree match {
-      case Node(_, cur_conf, _) => cur_conf
-      case Leaf(_, _) => 1 // search Leaves first
+      case RuleNode(_, cur_conf, _) => cur_conf
+      case RuleLeaf(_, _) => 1 // search Leaves first
       //case _ => throw new RuntimeException("fuck you again")
     }
 
@@ -55,7 +55,7 @@ abstract class RulesTree() {
       case Nil => None
       case tree :: tail => {
         tree match {
-          case Node(key, _, _) if key == target => Some(visited_l, tree, tail)
+          case RuleNode(key, _, _) if key == target => Some(visited_l, tree, tail)
           case _ => find_in_list(target, tree :: visited_l, tail)
         }
       }
@@ -66,7 +66,7 @@ abstract class RulesTree() {
     val (_, found_conf) = found
     val good_max = (a: Goods, b: Goods) => if (if (a._2 == b._2) a._1 < b._1 else a._2 > b._2 ) a else b
     this match {
-      case Node(v, max_conf, children) if max_conf >= found_conf =>
+      case RuleNode(v, max_conf, children) if max_conf >= found_conf =>
         v match {
           case key if key == 0 || keys.contains(key) => children.aggregate(found)(
             (last, child) => child.find_helper(keys, last),
@@ -74,7 +74,7 @@ abstract class RulesTree() {
           )
           case _ => found
         }
-      case Leaf(v, conf) if !keys.contains(v) => good_max(found, (v, conf))
+      case RuleLeaf(v, conf) if !keys.contains(v) => good_max(found, (v, conf))
       case _ => found
     }
   }
@@ -84,8 +84,8 @@ abstract class RulesTree() {
   }
 }
 
-case class Node(key: Int, max_conf: Double, children: List[RulesTree]) extends RulesTree
+case class RuleNode(key: Int, max_conf: Double, children: List[RulesTree]) extends RulesTree
 
-case class Leaf(rhs: Int, conf: Double) extends RulesTree
+case class RuleLeaf(rhs: Int, conf: Double) extends RulesTree
 
 case object Empty extends RulesTree
