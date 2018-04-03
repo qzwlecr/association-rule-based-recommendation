@@ -15,7 +15,7 @@ package AR {
 
       val transactions: RDD[Array[Int]] = originData.map(s => s.trim.split(' ').map(x => x.toInt)).cache()
       val model = new FPGrowth().setMinSupport(0.092).setNumPartitions(900).run(transactions)
-      model.freqItemsets.map(x=>x.items.reverse).sortBy(x => x.toString).saveAsTextFile(fileOutput+"/D.dat")
+      model.freqItemsets.map(x=>x.items.reverse.mkString(" ")).sortBy(x=>x).saveAsTextFile(fileOutput+"/D.dat")
       //val answerData = sc.textFile(fileInput + "/D-answer.dat").map(x=>x.trim.split(" ").map(x=>x.toInt)).map(x=>(x.take(x.length-1),x.last))
       //val freqItemss = sc.textFile(fileInput + "/freq.dat").collect().map(x=>x.trim.split(" ").map(x=>x.toInt))
       //val freqItems = freqItemss(0)
