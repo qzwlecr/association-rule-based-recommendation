@@ -5,3 +5,6 @@
 target
 project
 **/*.sc
+*.crc
+part-*
+*.dat
