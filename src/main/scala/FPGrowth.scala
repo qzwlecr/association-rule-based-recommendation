@@ -22,6 +22,7 @@ import java.{util => ju}
 import org.apache.spark.mllib.fpm.AssociationRules
 import org.apache.spark.mllib.fpm.FPGrowth._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{HashPartitioner, Partitioner}
 
 import scala.collection.JavaConverters._
@@ -32,11 +33,10 @@ import scala.reflect.ClassTag
   * Model trained by [[FPGrowth]], which holds frequent itemsets.
   *
   * @param freqItemsets frequent itemset, which is an RDD of `FreqItemset`
-  * @tparam Item item type
   */
 
-class FPGrowthModel[Item: ClassTag](
-                                     val freqItemsets: RDD[FreqItemset[Item]],val freqItems : Array[Item])
+class FPGrowthModel(
+                     val freqItemsets: RDD[FreqItemset[Int]], val freqItems: Array[Int])
   extends Serializable {
 
 
@@ -46,7 +46,7 @@ class FPGrowthModel[Item: ClassTag](
     * @param confidence minimal confidence of the rules produced
     */
 
-  def generateAssociationRules(confidence: Double): RDD[AssociationRules.Rule[Item]] = {
+  def generateAssociationRules(confidence: Double): RDD[AssociationRules.Rule[Int]] = {
     val associationRules = new AssociationRules()
     associationRules.run(freqItemsets)
   }
@@ -85,7 +85,7 @@ class FPGrowth private(
     */
   def setMinSupport(minSupport: Double): this.type = {
     require(minSupport >= 0.0 && minSupport <= 1.0,
-      s"Minimal support level must be in range [0, 1] but got ${minSupport}")
+      s"Minimal support level must be in range [0, 1] but got $minSupport")
     this.minSupport = minSupport
     this
   }
@@ -96,7 +96,7 @@ class FPGrowth private(
     */
   def setNumPartitions(numPartitions: Int): this.type = {
     require(numPartitions > 0,
-      s"Number of partitions must be positive but got ${numPartitions}")
+      s"Number of partitions must be positive but got $numPartitions")
     this.numPartitions = numPartitions
     this
   }
@@ -109,14 +109,14 @@ class FPGrowth private(
     * @return an [[FPGrowthModel]]
     *
     */
-  def run[Item: ClassTag](data: RDD[Array[Item]]): FPGrowthModel[Item] = {
+  def run(data: RDD[Array[Int]]): FPGrowthModel = {
     val count = data.count()
     val minCount = math.ceil(minSupport * count).toLong
     val numParts = if (numPartitions > 0) numPartitions else data.partitions.length
     val partitioner = new HashPartitioner(numParts)
     val freqItems = genFreqItems(data, minCount, partitioner)
     val freqItemsets = genFreqItemsets(data, minCount, freqItems, partitioner)
-    new FPGrowthModel(freqItemsets,freqItems)
+    new FPGrowthModel(freqItemsets, freqItems)
   }
 
   /**
@@ -126,10 +126,10 @@ class FPGrowth private(
     * @param partitioner partitioner used to distribute items
     * @return array of frequent pattern ordered by their frequencies
     */
-  private def genFreqItems[Item: ClassTag](
-                                            data: RDD[Array[Item]],
-                                            minCount: Long,
-                                            partitioner: Partitioner): Array[Item] = {
+  private def genFreqItems(
+                            data: RDD[Array[Int]],
+                            minCount: Long,
+                            partitioner: Partitioner): Array[Int] = {
     data.flatMap { t => t }
       .map(v => (v, 1L))
       .reduceByKey(partitioner, _ + _)
@@ -148,15 +148,15 @@ class FPGrowth private(
     * @param partitioner partitioner used to distribute transactions
     * @return an RDD of (frequent itemset, count)
     */
-  private def genFreqItemsets[Item: ClassTag](
-                                               data: RDD[Array[Item]],
-                                               minCount: Long,
-                                               freqItems: Array[Item],
-                                               partitioner: Partitioner): RDD[FreqItemset[Item]] = {
+  private def genFreqItemsets(
+                               data: RDD[Array[Int]],
+                               minCount: Long,
+                               freqItems: Array[Int],
+                               partitioner: Partitioner): RDD[FreqItemset[Int]] = {
     val itemToRank = freqItems.zipWithIndex.toMap
     data.flatMap { transaction =>
       genCondTransactions(transaction, itemToRank, partitioner)
-    }.aggregateByKey(new FPTree[Int], partitioner.numPartitions)(
+    }.aggregateByKey(new FPTree, partitioner.numPartitions)(
       (tree, transaction) => tree.add(transaction, 1L),
       (tree1, tree2) => tree1.merge(tree2))
       .flatMap { case (part, tree) =>
@@ -174,9 +174,9 @@ class FPGrowth private(
     * @param partitioner partitioner used to distribute transactions
     * @return a map of (target partition, conditional transaction)
     */
-  private def genCondTransactions[Item: ClassTag](
-                                                   transaction: Array[Item],
-                                                   itemToRank: Map[Item, Int],
+  private def genCondTransactions(
+                                                   transaction: Array[Int],
+                                                   itemToRank: Map[Int, Int],
                                                    partitioner: Partitioner): mutable.Map[Int, Array[Int]] = {
     val output = mutable.Map.empty[Int, Array[Int]]
     // Filter the basket by frequent items pattern and sort their ranks.
