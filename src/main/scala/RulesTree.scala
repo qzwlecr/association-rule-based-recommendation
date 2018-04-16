@@ -5,7 +5,7 @@ import scala.math.max
 abstract class RulesTree() {
   type Goods = (Int, Double)
 
-  def insert_helper(keys: List[Int], good: Goods): RulesTree = {
+  def insert_helper(keys: List[Int], good: Goods ): RulesTree = {
     val (rhs, conf) = good
     this match {
       case Empty =>
@@ -89,3 +89,4 @@ case class RuleNode(key: Int, max_conf: Double, children: List[RulesTree]) exten
 case class RuleLeaf(rhs: Int, conf: Double) extends RulesTree
 
 case object Empty extends RulesTree
+
