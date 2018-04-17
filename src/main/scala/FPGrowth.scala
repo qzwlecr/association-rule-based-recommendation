@@ -22,12 +22,13 @@ import java.{util => ju}
 import org.apache.spark.mllib.fpm.AssociationRules
 import org.apache.spark.mllib.fpm.FPGrowth._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+//import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{HashPartitioner, Partitioner}
+
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.reflect.ClassTag
+//import scala.reflect.ClassTag
 
 /**
   * Model trained by [[FPGrowth]], which holds frequent itemsets.
@@ -35,11 +36,11 @@ import scala.reflect.ClassTag
   * @param freqItemsets frequent itemset, which is an RDD of `FreqItemset`
   */
 
+
 class FPGrowthModel(
-                     val freqItemsets: RDD[FreqItemset[Int]], val freqItems: Array[Int])
+    val freqItemsets: RDD[FreqItemset[Int]],
+    val freqItems: Array[Int])
   extends Serializable {
-
-
   /**
     * Generates association rules for the `Item`s in [[freqItemsets]].
     *
@@ -110,12 +111,14 @@ class FPGrowth private(
     *
     */
   def run(data: RDD[Array[Int]]): FPGrowthModel = {
+
     val count = data.count()
     val minCount = math.ceil(minSupport * count).toLong
     val numParts = if (numPartitions > 0) numPartitions else data.partitions.length
     val partitioner = new HashPartitioner(numParts)
     val freqItems = genFreqItems(data, minCount, partitioner)
     val freqItemsets = genFreqItemsets(data, minCount, freqItems, partitioner)
+    // core calculation
     new FPGrowthModel(freqItemsets, freqItems)
   }
 
@@ -201,7 +204,8 @@ object FPGrowth {
   /**
     * Frequent itemset.
     *
-    * @param items items in this itemset. Java users should call `FreqItemset.javaItems` instead.
+    * @param items items in this itemset.
+    *              Java users should call `FreqItemset.javaItems` instead.
     * @param freq  frequency
     * @tparam Item item type
     *
@@ -209,7 +213,6 @@ object FPGrowth {
   class FreqItemset[Item](
                            val items: Array[Item],
                            val freq: Long) extends Serializable {
-
     /**
       * Returns items in a Java List.
       *
@@ -217,10 +220,9 @@ object FPGrowth {
     def javaItems: java.util.List[Item] = {
       items.toList.asJava
     }
-
     override def toString: String = {
       s"${items.mkString("{", ",", "}")}: $freq"
     }
   }
-
 }
+
