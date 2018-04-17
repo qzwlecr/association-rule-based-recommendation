@@ -27,7 +27,7 @@ package AR {
       model.freqItemsets.map(
         _.items.reverse.sortBy(x=>x).mkString(" ")
       ).sortBy(x => x)
-        .saveAsTextFile(fileOutput + "/D_std.dat")
+        .saveAsTextFile(fileOutput + "/freqList_Sample.dat")
 
       //val answerData = sc.textFile(fileInput + "/D-answer.dat").map(x=>x.trim.split(" ").map(x=>x.toInt)).map(x=>(x.take(x.length-1),x.last))
       //val freqItemss = sc.textFile(fileInput + "/freq.dat").collect().map(x=>x.trim.split(" ").map(x=>x.toInt))
