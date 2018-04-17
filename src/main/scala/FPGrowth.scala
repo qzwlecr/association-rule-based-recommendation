@@ -159,9 +159,10 @@ class FPGrowth private(
     val itemToRank = freqItems.zipWithIndex.toMap
     data.flatMap { transaction =>
       genCondTransactions(transaction, itemToRank, partitioner)
-    }.aggregateByKey(new FPTree, partitioner.numPartitions)(
+    }.aggregateByKey(new FPTreeMap, partitioner.numPartitions)(
       (tree, transaction) => tree.add(transaction, 1L),
       (tree1, tree2) => tree1.merge(tree2))
+      .map{x => (x._1, x._2.toFPTree)}
       .flatMap { case (part, tree) =>
         tree.extract(minCount, x => partitioner.getPartition(x) == part)
       }.map { case (ranks, count) =>

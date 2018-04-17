@@ -21,10 +21,45 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 /**
+  * FP-Tree-Map data structure to privide info for FP-Tree
+  * and reduce memory footprint
+  */
+class FPTreeMap extends Serializable{
+  private val records = new mutable.HashMap[Array[Int], Long]().withDefaultValue(0L)
+
+  def add(t: Array[Int], count:Long): this.type = {
+    if(!this.records.contains(t)){
+      this.records(t) = 0
+    }
+    this.records(t) += count
+    this
+  }
+
+  def merge(other: FPTreeMap): this.type = {
+    other.records.foreach{ r =>
+      val (t, count) = r
+      if(!this.records.contains(t)){
+        this.records(t) = 0
+      }
+      this.records(t) += count
+    }
+    this
+  }
+
+  // here to minimize the memory pressure
+  def toFPTree: FPTree = {
+    val result = new FPTree
+    records.foreach{ r =>
+      result.add(r._1, r._2)
+    }
+    result
+  }
+}
+
+/**
   * FP-Tree data structure used in FP-Growth.
   */
 class FPTree extends Serializable {
-
   import FPTree._
 
   val root: Node = new Node(null)
@@ -76,6 +111,21 @@ class FPTree extends Serializable {
     }
     tree
   }
+    /** Extracts all patterns with valid suffix and minimum count. */
+  def extract(
+               minCount: Long,
+               validateSuffix: Int => Boolean = _ => true): Iterator[(List[Int], Long)] = {
+    summaries.iterator.flatMap { case (item, summary) =>
+      if (validateSuffix(item) && summary.count >= minCount) {
+        Iterator.single((item :: Nil, summary.count)) ++
+          project(item).extract(minCount).map { case (t, c) =>
+            (item :: t, c)
+          }
+      } else {
+        Iterator.empty
+      }
+    }
+  }
 
   /** Returns all transactions in an iterator. */
   def transactions: Iterator[(List[Int], Long)] = getTransactions(root)
@@ -97,21 +147,7 @@ class FPTree extends Serializable {
     }
   }
 
-  /** Extracts all patterns with valid suffix and minimum count. */
-  def extract(
-               minCount: Long,
-               validateSuffix: Int => Boolean = _ => true): Iterator[(List[Int], Long)] = {
-    summaries.iterator.flatMap { case (item, summary) =>
-      if (validateSuffix(item) && summary.count >= minCount) {
-        Iterator.single((item :: Nil, summary.count)) ++
-          project(item).extract(minCount).map { case (t, c) =>
-            (item :: t, c)
-          }
-      } else {
-        Iterator.empty
-      }
-    }
-  }
+
 }
 
 object FPTree {
