@@ -160,11 +160,11 @@ class FPGrowth private(
     data.flatMap { transaction =>
       genCondTransactions(transaction, itemToRank, partitioner)
     }
-//      .aggregateByKey(new FPTreeMap, partitioner.numPartitions)(
-      .aggregateByKey(new FPTree, partitioner.numPartitions)(
+      .aggregateByKey(new FPTreeMap, partitioner.numPartitions)(
+//      .aggregateByKey(new FPTree, partitioner.numPartitions)(
       (tree, transaction) => tree.add(transaction, 1L),
       (tree1, tree2) => tree1.merge(tree2))
-//      .map{x => (x._1, x._2.toFPTree)}
+      .map{x => (x._1, x._2.toFPTree)}
       .flatMap { case (part, tree) =>
         tree.extract(minCount, x => partitioner.getPartition(x) == part)
       }.map { case (ranks, count) =>
@@ -203,7 +203,6 @@ class FPGrowth private(
 }
 
 object FPGrowth {
-
   /**
     * Frequent itemset.
     *

@@ -49,8 +49,7 @@ class FPTreeMap extends Serializable{
   def toFPTree: FPTree = {
     val result = new FPTree
     records.foreach{ r =>
-      // exploded ???
-      println(result, "inserting", r._1.toList, r._2)
+
       result.add(r._1, r._2)
     }
     result
@@ -63,12 +62,11 @@ class FPTreeMap extends Serializable{
 class RFPTree extends Serializable {
   import RFPTree._
   private val summaries: mutable.Map[Int, RSummary] = mutable.Map.empty
-  private def root = new RNode(null, -1)
   // generate a reverse FPSubTree
   // just like a directed rooted tree, with all edge reversed
-  def fromFPSubTree(subTree: FPTree.Node, parent: RNode = root): this.type ={
+  def fromFPSubTree(subTree: FPTree.Node, parent: RNode = new RNode(null, -1)): this.type ={
     subTree.children.foreach{ case (item, node) =>
-      println("rawData", item, node.count)
+//      println("rawData", item, node.count, "to", parent)
       val summary = summaries.getOrElseUpdate(item, new RSummary)
       val curr = new RNode(parent, item)
       summary.nodes.getOrElseUpdate(parent, 0)
@@ -120,6 +118,7 @@ object RFPTree extends Serializable {
                    nodes: mutable.HashMap[RNode, Long]
                    ) :Unit = {
     // TODO for better performance
+    println("making", suffix)
     val attachTable = new mutable.HashMap[RNode, Long]
     var attachCount: Long = 0L
     val discardTable = new mutable.HashMap[RNode, Long]
@@ -146,11 +145,11 @@ object RFPTree extends Serializable {
           discardTable(parent) += count
         }
     }
-    if(attachCount > minCount){
+    if(attachCount >= minCount){
       extractHelper(finalTable, minCount, peekItem::suffix, attachTable)
     }
     if(discardTable.nonEmpty){
-      extractHelper(finalTable, minCount, suffix, discardTable)
+      extractHelper(finalTable, minCount, peekItem::suffix, discardTable)
     }
   }
 }
@@ -217,17 +216,17 @@ class FPTree extends Serializable {
   def extract(
                minCount: Long,
                validateSuffix: Int => Boolean = _ => true): Iterator[(List[Int], Long)] = {
-    summaries.iterator.flatMap { case (item, summary) =>
-      if (validateSuffix(item) && summary.count >= minCount) {
-        Iterator.single((item :: Nil, summary.count)) ++
-          project(item).extract(minCount).map { case (t, c) =>
-            (item :: t, c)
-          }
-      } else {
-        Iterator.empty
-      }
-    }
-//    toRFPTree.extract(minCount, validateSuffix)
+//    summaries.iterator.flatMap { case (item, summary) =>
+//      if (validateSuffix(item) && summary.count >= minCount) {
+//        Iterator.single((item :: Nil, summary.count)) ++
+//          project(item).extract(minCount).map { case (t, c) =>
+//            (item :: t, c)
+//          }
+//      } else {
+//        Iterator.empty
+//      }
+//    }
+    toRFPTree.extract(minCount, validateSuffix)
   }
 
   /** Returns all transactions in an iterator. */
@@ -249,12 +248,9 @@ class FPTree extends Serializable {
       }
     }
   }
-  
-
 }
 
 object FPTree {
-
   /** Representing a node in an FP-Tree. */
   class Node(val parent: Node) extends Serializable {
     var item: Int = _
@@ -269,5 +265,5 @@ object FPTree {
     var count: Long = 0L
     val nodes: ListBuffer[Node] = ListBuffer.empty
   }
-
 }
+

@@ -20,14 +20,19 @@ package AR {
       conf.registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth]))
       val sc = new SparkContext(conf)
       val originData = sc
+//        .textFile(fileInput + "/D_sample.dat")
         .parallelize(Array(
-          "1 2 3 4 5",
-          "1 2 3 4",
-          "1 2 3",
-          "1 2",
-          "1"
+//          "8 9 10",
+          "0 1 3 4 5 6",
+//          "0 1 2 3 4 5",
+//          "0 1 2 3 4 5",
+//          "0 1 2 3 4",
+//          "0 1 2 3",
+//          "0 1 2",
+          "0 1 2",
+//          "0 1",
+          "0"
         ))
-//        .textFile(fileInut + "/D_sample.dat")
 //        .textFile(fileInput + "/D.dat").sample(false, 0.02, 810L)
 
       val transactions = originData.map(
