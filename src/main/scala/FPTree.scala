@@ -102,13 +102,13 @@ object RFPTree extends Serializable {
     val nodes: mutable.HashMap[RNode, Long] = mutable.HashMap.empty
   }
 
-  def power[T](set: Set[T], length: Int) = {
-    var res = Set[Set[T]]()
-    res ++= set.map(Set(_))
-
-    for (i <- 1 until length)
-      res = res.map(x => set.map(x + _)).flatten
-
+  def power[T](rawList: List[T], initial: List[T]) = {
+    var res: List[List[T]] = List(initial)
+    rawList.foreach {
+      item => {
+        res = res ::: res.map(item :: _)
+      }
+    }
     res
   }
 
@@ -117,14 +117,17 @@ object RFPTree extends Serializable {
                     suffix: List[Int],
                     rnode: RNode,
                     count: Long
-                  ): Unit = {
+                  ):Unit = {
     // TODO for better performance
     val listBuf = new ListBuffer[Int]
     var iter = rnode
+    // generate list in reverse order
     while (!iter.isRoot) {
+//      println("fuck", listBuf.toList)
       listBuf += iter.item
+      iter = iter.parent
     }
-
+    finalTable ++= power(listBuf.toList, suffix).map(Tuple2(_, count))
   }
 
   def extractHelper(finalTable: ListBuffer[(List[Int], Long)],
@@ -132,33 +135,39 @@ object RFPTree extends Serializable {
                     suffix: List[Int],
                     nodes: collection.immutable.Iterable[(RNode, Long)]
                    ): Unit = {
-    var nullCount = 0L
-    var validCount = 0L
-
-    val newNodes = new ListBuffer[(RNode, Long)]
-    nodes.foreach { case (rnode, count) =>
-      if (rnode.isRoot) {
-        nullCount += count
-      } else {
-        validCount += count
-        newNodes += Tuple2(rnode, count)
+    if (nodes.size == 1) {
+      val (rnode, count) = nodes.head
+      if(count >= minCount) {
+        extractChain(finalTable, suffix, rnode, count)
       }
     }
-    //    val newNodes = nodes.flatMap{case(rnode, count) =>
-    //      if(rnode.isRoot){
-    //        nullCount += count
-    //        List.empty
-    //      }else{
-    //        validCount += count
-    //        List(Tuple2(rnode, count))
-    //      }
-    //    }
-
-    if (nullCount + validCount >= minCount) {
-      finalTable += Tuple2(suffix, nullCount + validCount)
-    }
-    if (validCount >= minCount) {
-      extractHelperCore(finalTable, minCount, suffix, newNodes.toList)
+    else {
+      var nullCount = 0L
+      var validCount = 0L
+      val newNodes = new ListBuffer[(RNode, Long)]
+      nodes.foreach { case (rnode, count) =>
+        if (rnode.isRoot) {
+          nullCount += count
+        } else {
+          validCount += count
+          newNodes += Tuple2(rnode, count)
+        }
+      }
+      //    val newNodes = nodes.flatMap{case(rnode, count) =>
+      //      if(rnode.isRoot){
+      //        nullCount += count
+      //        List.empty
+      //      }else{
+      //        validCount += count
+      //        List(Tuple2(rnode, count))
+      //      }
+      //    }
+      if (nullCount + validCount >= minCount) {
+        finalTable += Tuple2(suffix, nullCount + validCount)
+      }
+      if (validCount >= minCount) {
+        extractHelperCore(finalTable, minCount, suffix, newNodes.toList)
+      }
     }
   }
 
