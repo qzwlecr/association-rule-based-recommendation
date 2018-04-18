@@ -20,19 +20,21 @@ package AR {
       conf.registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth]))
       val sc = new SparkContext(conf)
       val originData = sc
-//        .textFile(fileInput + "/D_sample.dat")
-        .parallelize(Array(
-//          "8 9 10",
-          "0 1 3 4 5 6",
-//          "0 1 2 3 4 5",
-//          "0 1 2 3 4 5",
-//          "0 1 2 3 4",
-//          "0 1 2 3",
+        .textFile(fileInput + "/D_sample.dat")
+//        .parallelize(Array(
+////          "8 9 10",
+//          "0 1 3 4 5 6",
+////          "0 1 2 3 4 5",
+////          "0 1 2 3 4 5",
+////          "0 1 2 3 4",
+////          "0 1 2 3",
+////          "0 1 2",
+//          "0 1 2 5",
 //          "0 1 2",
-          "0 1 2",
-//          "0 1",
-          "0"
-        ))
+//          "0 1 2",
+////          "0 1",
+//          "0"
+//        ))
 //        .textFile(fileInput + "/D.dat").sample(false, 0.02, 810L)
 
       val transactions = originData.map(
@@ -40,8 +42,8 @@ package AR {
       ).cache()
 
       val model = new FPGrowth()
-//        .setMinSupport(0.092)
-        .setMinSupport(0.01)
+        .setMinSupport(0.092)
+//        .setMinSupport(0.01)
         .run(transactions)
 
       model.freqItemsets.map(

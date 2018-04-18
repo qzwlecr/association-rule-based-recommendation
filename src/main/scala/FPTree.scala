@@ -61,16 +61,14 @@ class FPTreeMap extends Serializable{
   */
 class RFPTree extends Serializable {
   import RFPTree._
-  private val summaries: mutable.Map[Int, RSummary] = mutable.Map.empty
+  private val summaries: mutable.HashMap[Int, RSummary] = mutable.HashMap.empty
   // generate a reverse FPSubTree
   // just like a directed rooted tree, with all edge reversed
   def fromFPSubTree(subTree: FPTree.Node, parent: RNode = new RNode(null, -1)): this.type ={
     subTree.children.foreach{ case (item, node) =>
-      val summary = summaries.getOrElseUpdate(item, new RSummary)
       val curr = new RNode(parent, item)
-      println("edge", curr.toString.slice(16, 20), item, "to", parent.item, parent.toString.slice(16, 20), "as", node.count)
-      summary.nodes.getOrElseUpdate(parent, 0)
-      summary.nodes(parent) += node.count
+      val summary = summaries.getOrElseUpdate(item, new RSummary)
+      summary.nodes.update(parent, node.count + summary.nodes.getOrElseUpdate(parent, 0));
       fromFPSubTree(node, curr)
     }
     this
@@ -83,7 +81,6 @@ class RFPTree extends Serializable {
       if(validateSuffix(item)){
         val totalList: ListBuffer[(List[Int], Long)] = mutable.ListBuffer.empty
         RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes)
-        print(totalList)
         totalList
       }
       else{
@@ -118,12 +115,10 @@ object RFPTree extends Serializable {
                    nodes: mutable.HashMap[RNode, Long]
                    ) :Unit = {
     // TODO for better performance
-//    println("making", suffix)
     val attachTable = new mutable.HashMap[RNode, Long]
     var attachCount: Long = 0L
     val discardTable = new mutable.HashMap[RNode, Long]
     val peekItem = nodes.map{_._1.item}.max
-//    println(peekItem, "=>", nodes.size)
     nodes.foreach{
       case (rnode, count) =>
         if(peekItem != rnode.item) {
@@ -150,7 +145,7 @@ object RFPTree extends Serializable {
       extractHelper(finalTable, minCount, peekItem::suffix, attachTable)
     }
     if(discardTable.nonEmpty){
-      extractHelper(finalTable, minCount, peekItem::suffix, discardTable)
+      extractHelper(finalTable, minCount, suffix, discardTable)
     }
   }
 }
