@@ -49,7 +49,6 @@ class FPTreeMap extends Serializable{
   def toFPTree: FPTree = {
     val result = new FPTree
     records.foreach{ r =>
-
       result.add(r._1, r._2)
     }
     result
@@ -110,24 +109,35 @@ object RFPTree extends Serializable {
   def extractHelper( finalTable: ListBuffer[(List[Int], Long)],
                minCount: Long,
                suffix: List[Int],
-               nodes: List[(RNode, Long)]
+               nodes: collection.immutable.Iterable[(RNode, Long)]
              ): Unit = {
     var nullCount = 0L
     var validCount = 0L
-    val newNodes = nodes.flatMap{case(rnode, count) =>
+
+    val newNodes = new ListBuffer[(RNode, Long)]
+    nodes.foreach{ case(rnode, count) =>
       if(rnode.isRoot){
         nullCount += count
-        List.empty
-      }else{
+      } else {
         validCount += count
-        List(Tuple2(rnode, count))
+        newNodes += Tuple2(rnode, count)
       }
     }
+//    val newNodes = nodes.flatMap{case(rnode, count) =>
+//      if(rnode.isRoot){
+//        nullCount += count
+//        List.empty
+//      }else{
+//        validCount += count
+//        List(Tuple2(rnode, count))
+//      }
+//    }
+
     if(nullCount + validCount >= minCount) {
       finalTable += Tuple2(suffix, nullCount + validCount)
     }
     if(validCount >= minCount){
-      extractHelperCore(finalTable, minCount, suffix, newNodes)
+      extractHelperCore(finalTable, minCount, suffix, newNodes.toList)
     }
   }
 
@@ -139,35 +149,53 @@ object RFPTree extends Serializable {
                    finalTable: ListBuffer[(List[Int], Long)],
                    minCount: Long,
                    suffix: List[Int],
-                   nodes: List[(RNode, Long)]
+                   nodes: collection.immutable.Iterable[(RNode, Long)]
                    ) :Unit = {
     // TODO for better performance
     val peekItem = nodes.map{_._1.item}.max
-    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
-      // ready for Root node
-      case (rnode, count) => Tuple2(rnode.parent, count)
-    }
+    val attachTable = new ListBuffer[(RNode, Long)]
+    val discardTable = new ListBuffer[(RNode, Long)]
     var discardCount = 0L
-      // filter out all root node
-    val discardTable = nodes.flatMap{
-      case (rnode, count) =>
-        if(peekItem == rnode.item){
-          if(rnode.parent.isRoot)
-            List.empty
-          else {
+    nodes.foreach{
+      case (rnode, count) =>{
+        if(rnode.item == peekItem) {
+          attachTable += Tuple2(rnode.parent, count)
+          if (!rnode.parent.isRoot) {
             discardCount += count
-            List(Tuple2(rnode.parent, count))
+            discardTable += Tuple2(rnode.parent, count)
           }
-        }
-        else {
+        } else{
+          discardTable += Tuple2(rnode, count)
           discardCount += count
-          List(Tuple2(rnode, count))
         }
-    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
+      }
+    }
+    val discardTableClean = discardTable.groupBy(_._1).mapValues(_.map(_._2).sum)
+//    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
+//      // ready for Root node
+//      case (rnode, count) => Tuple2(rnode.parent, count)
+//    }
+//    var discardCount = 0L
+//      // filter out all root node
+//    val discardTable = nodes.flatMap{
+//      case (rnode, count) =>
+//        if(peekItem == rnode.item){
+//          if(rnode.parent.isRoot)
+//            List.empty
+//          else {
+//            discardCount += count
+//            List(Tuple2(rnode.parent, count))
+//          }
+//        }
+//        else {
+//          discardCount += count
+//          List(Tuple2(rnode, count))
+//        }
+//    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
-    extractHelper(finalTable, minCount, peekItem::suffix, attachTable)
+    extractHelper(finalTable, minCount, peekItem::suffix, attachTable.toList)
     if(discardCount >= minCount){
-      extractHelperCore(finalTable, minCount, suffix, discardTable)
+      extractHelperCore(finalTable, minCount, suffix, discardTableClean)
     }
   }
 }
@@ -284,4 +312,3 @@ object FPTree {
     val nodes: ListBuffer[Node] = ListBuffer.empty
   }
 }
-
