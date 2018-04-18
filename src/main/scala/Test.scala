@@ -4,8 +4,9 @@ package AR {
   object Test {
     def main(args: Array[String]): Unit = {
       val (fileInput, fileOutput, fileTemp) =
-        if (args.length == 0) ("data/input", "data/output", "/tmp")
+        if (args.length == 0) ("data/input", "data/output", "data/tmp")
         else (args(0), args(1), args(2))
+
 
       val conf = new SparkConf().setAppName("Association Rules")
         .setMaster("local[2]")
@@ -13,21 +14,40 @@ package AR {
         .set("spark.network.timeout", "3000")
         .set("spark.kryoserializer.buffer.max", "2047m")
         .set("spark.executor.extraJavaOptions", "-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:ThreadStackSize=2048 -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75")
+        .set("spark.hadoop.validateOutputSpecs", "false")
       conf.registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth]))
       val sc = new SparkContext(conf)
-      val originData = sc.textFile(fileInput + "/D_sample.dat")
+      val originData = sc
+        .textFile(fileInput + "/D_sample.dat")
+//        .textFile(fileInput + "/D.dat").sample(false, 0.02, 810L)
+//        .parallelize(Array(
+////          "8 9 10",
+//          "0 1 3 4 5 6",
+////          "0 1 2 3 4 5",
+////          "0 1 2 3 4 5",
+////          "0 1 2 3 4",
+////          "0 1 2 3",
+////          "0 1 2",
+//          "0 1 2 5",
+//          "0 1 2",
+//          "0 1 2",
+////          "0 1",
+//          "0"
+//        ))
 
       val transactions = originData.map(
         _.trim.split(' ').map(_.toInt)
       ).cache()
+
       val model = new FPGrowth()
         .setMinSupport(0.092)
+//        .setMinSupport(0.01)
         .run(transactions)
 
       model.freqItemsets.map(
         _.items.reverse.sortBy(x=>x).mkString(" ")
       ).sortBy(x => x)
-        .saveAsTextFile(fileOutput + "/freqList_Sample.dat")
+        .saveAsTextFile(fileOutput + "/D_modified.dat")
 
       //val answerData = sc.textFile(fileInput + "/D-answer.dat").map(x=>x.trim.split(" ").map(x=>x.toInt)).map(x=>(x.take(x.length-1),x.last))
       //val freqItemss = sc.textFile(fileInput + "/freq.dat").collect().map(x=>x.trim.split(" ").map(x=>x.toInt))
@@ -62,4 +82,5 @@ package AR {
 
     }
   }
+
 }
