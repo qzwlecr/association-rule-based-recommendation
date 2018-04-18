@@ -5,7 +5,7 @@ import scala.math.max
 abstract class RulesTree() {
   type Goods = (Int, Double)
 
-  def insert_helper(keys: List[Int], good: Goods ): RulesTree = {
+  def insert_helper(keys: List[Int], good: Goods): RulesTree = {
     val (rhs, conf) = good
     this match {
       case Empty =>
@@ -64,7 +64,7 @@ abstract class RulesTree() {
 
   def find_helper(keys: Set[Int], found: Goods): Goods = {
     val (_, found_conf) = found
-    val good_max = (a: Goods, b: Goods) => if (if (a._2 == b._2) a._1 < b._1 else a._2 > b._2 ) a else b
+    val good_max = (a: Goods, b: Goods) => if (if (a._2 == b._2) a._1 < b._1 else a._2 > b._2) a else b
     this match {
       case RuleNode(v, max_conf, children) if max_conf >= found_conf =>
         v match {

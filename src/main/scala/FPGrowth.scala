@@ -38,8 +38,8 @@ import scala.collection.mutable
 
 
 class FPGrowthModel(
-    val freqItemsets: RDD[FreqItemset[Int]],
-    val freqItems: Array[Int])
+                     val freqItemsets: RDD[FreqItemset[Int]],
+                     val freqItems: Array[Int])
   extends Serializable {
   /**
     * Generates association rules for the `Item`s in [[freqItemsets]].
@@ -161,10 +161,10 @@ class FPGrowth private(
       genCondTransactions(transaction, itemToRank, partitioner)
     }
       .aggregateByKey(new FPTreeMap, partitioner.numPartitions)(
-//      .aggregateByKey(new FPTree, partitioner.numPartitions)(
-      (tree, transaction) => tree.add(transaction.toList, 1L),
-      (tree1, tree2) => tree1.merge(tree2))
-      .map{x => (x._1, x._2.toFPTree)}
+        //      .aggregateByKey(new FPTree, partitioner.numPartitions)(
+        (tree, transaction) => tree.add(transaction.toList, 1L),
+        (tree1, tree2) => tree1.merge(tree2))
+      .map { x => (x._1, x._2.toFPTree) }
       .flatMap { case (part, tree) =>
         tree.extract(minCount, x => partitioner.getPartition(x) == part)
       }.map { case (ranks, count) =>
@@ -181,9 +181,9 @@ class FPGrowth private(
     * @return a map of (target partition, conditional transaction)
     */
   private def genCondTransactions(
-                                                   transaction: Array[Int],
-                                                   itemToRank: Map[Int, Int],
-                                                   partitioner: Partitioner): mutable.Map[Int, Array[Int]] = {
+                                   transaction: Array[Int],
+                                   itemToRank: Map[Int, Int],
+                                   partitioner: Partitioner): mutable.Map[Int, Array[Int]] = {
     val output = mutable.Map.empty[Int, Array[Int]]
     // Filter the basket by frequent items pattern and sort their ranks.
     val filtered = transaction.flatMap(itemToRank.get)
@@ -203,6 +203,7 @@ class FPGrowth private(
 }
 
 object FPGrowth {
+
   /**
     * Frequent itemset.
     *
@@ -222,9 +223,11 @@ object FPGrowth {
     def javaItems: java.util.List[Item] = {
       items.toList.asJava
     }
+
     override def toString: String = {
       s"${items.mkString("{", ",", "}")}: $freq"
     }
   }
+
 }
 

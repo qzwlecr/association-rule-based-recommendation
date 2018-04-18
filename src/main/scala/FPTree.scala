@@ -24,11 +24,11 @@ import scala.collection.mutable.ListBuffer
   * FP-Tree-Map data structure to privide info for FP-Tree
   * and reduce memory footprint
   */
-class FPTreeMap extends Serializable{
+class FPTreeMap extends Serializable {
   private val records = new mutable.HashMap[List[Int], Long]()
 
-  def add(t: List[Int], count:Long): this.type = {
-    if(!this.records.contains(t)){
+  def add(t: List[Int], count: Long): this.type = {
+    if (!this.records.contains(t)) {
       this.records(t) = 0
     }
     this.records(t) += count
@@ -36,8 +36,8 @@ class FPTreeMap extends Serializable{
   }
 
   def merge(other: FPTreeMap): this.type = {
-    other.records.foreach{ case (t, count) =>
-      if(!this.records.contains(t)){
+    other.records.foreach { case (t, count) =>
+      if (!this.records.contains(t)) {
         this.records(t) = 0
       }
       this.records(t) += count
@@ -48,7 +48,7 @@ class FPTreeMap extends Serializable{
   // here to minimize the memory pressure
   def toFPTree: FPTree = {
     val result = new FPTree
-    records.foreach{ r =>
+    records.foreach { r =>
       result.add(r._1, r._2)
     }
     result
@@ -59,12 +59,15 @@ class FPTreeMap extends Serializable{
   * reverse-FP-Tree data structure used in FP-Growth.
   */
 class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializable {
+
   import RFPTree._
+
   private val summaries: mutable.HashMap[Int, RSummary] = mutable.HashMap.empty
+
   // generate a reverse FPSubTree
   // just like a directed rooted tree, with all edge reversed
-  def fromFPSubTree(subTree: FPTree.Node, parent: RNode = new RNode(null, -1)): this.type ={
-    subTree.children.foreach{ case (item, node) =>
+  def fromFPSubTree(subTree: FPTree.Node, parent: RNode = new RNode(null, -1)): this.type = {
+    subTree.children.foreach { case (item, node) =>
       val curr = new RNode(parent, item)
       val summary = summaries.getOrElseUpdate(item, new RSummary)
       summary.nodes.update(parent, node.count + summary.nodes.getOrElseUpdate(parent, 0));
@@ -74,13 +77,13 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
   }
 
   def extract(minCount: Long): Iterator[(List[Int], Long)] = {
-    summaries.iterator.flatMap{ case (item, summary) =>
-      if(validateSuffix(item)){
+    summaries.iterator.flatMap { case (item, summary) =>
+      if (validateSuffix(item)) {
         val totalList: ListBuffer[(List[Int], Long)] = mutable.ListBuffer.empty
         RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes.toList)
         totalList
       }
-      else{
+      else {
         Iterator.empty
       }
     }
@@ -89,6 +92,7 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
 
 
 object RFPTree extends Serializable {
+
   class RNode(val parent: RNode, val item: Int) extends Serializable {
     def isRoot: Boolean = parent == null
   }
@@ -98,45 +102,62 @@ object RFPTree extends Serializable {
     val nodes: mutable.HashMap[RNode, Long] = mutable.HashMap.empty
   }
 
-  def extractChain(
-                  minCount: Long,
-                  suffix: List[Int],
-                  nodes: List[(RNode, Long)]
-                  ): Unit = {
-    // TODO for better performance
+  def power[T](set: Set[T], length: Int) = {
+    var res = Set[Set[T]]()
+    res ++= set.map(Set(_))
+
+    for (i <- 1 until length)
+      res = res.map(x => set.map(x + _)).flatten
+
+    res
   }
 
-  def extractHelper( finalTable: ListBuffer[(List[Int], Long)],
-               minCount: Long,
-               suffix: List[Int],
-               nodes: collection.immutable.Iterable[(RNode, Long)]
-             ): Unit = {
+  def extractChain(
+                    finalTable: ListBuffer[(List[Int], Long)],
+                    suffix: List[Int],
+                    rnode: RNode,
+                    count: Long
+                  ): Unit = {
+    // TODO for better performance
+    val listBuf = new ListBuffer[Int]
+    var iter = rnode
+    while (!iter.isRoot) {
+      listBuf += iter.item
+    }
+
+  }
+
+  def extractHelper(finalTable: ListBuffer[(List[Int], Long)],
+                    minCount: Long,
+                    suffix: List[Int],
+                    nodes: collection.immutable.Iterable[(RNode, Long)]
+                   ): Unit = {
     var nullCount = 0L
     var validCount = 0L
 
     val newNodes = new ListBuffer[(RNode, Long)]
-    nodes.foreach{ case(rnode, count) =>
-      if(rnode.isRoot){
+    nodes.foreach { case (rnode, count) =>
+      if (rnode.isRoot) {
         nullCount += count
       } else {
         validCount += count
         newNodes += Tuple2(rnode, count)
       }
     }
-//    val newNodes = nodes.flatMap{case(rnode, count) =>
-//      if(rnode.isRoot){
-//        nullCount += count
-//        List.empty
-//      }else{
-//        validCount += count
-//        List(Tuple2(rnode, count))
-//      }
-//    }
+    //    val newNodes = nodes.flatMap{case(rnode, count) =>
+    //      if(rnode.isRoot){
+    //        nullCount += count
+    //        List.empty
+    //      }else{
+    //        validCount += count
+    //        List(Tuple2(rnode, count))
+    //      }
+    //    }
 
-    if(nullCount + validCount >= minCount) {
+    if (nullCount + validCount >= minCount) {
       finalTable += Tuple2(suffix, nullCount + validCount)
     }
-    if(validCount >= minCount){
+    if (validCount >= minCount) {
       extractHelperCore(finalTable, minCount, suffix, newNodes.toList)
     }
   }
@@ -146,68 +167,71 @@ object RFPTree extends Serializable {
   // and you have no excuse
   // input: RootNode is not permit
   def extractHelperCore(
-                   finalTable: ListBuffer[(List[Int], Long)],
-                   minCount: Long,
-                   suffix: List[Int],
-                   nodes: collection.immutable.Iterable[(RNode, Long)]
-                   ) :Unit = {
+                         finalTable: ListBuffer[(List[Int], Long)],
+                         minCount: Long,
+                         suffix: List[Int],
+                         nodes: collection.immutable.Iterable[(RNode, Long)]
+                       ): Unit = {
     // TODO for better performance
-    val peekItem = nodes.map{_._1.item}.max
+    val peekItem = nodes.map {
+      _._1.item
+    }.max
     val attachTable = new ListBuffer[(RNode, Long)]
     val discardTable = new ListBuffer[(RNode, Long)]
     var discardCount = 0L
-    nodes.foreach{
-      case (rnode, count) =>{
-        if(rnode.item == peekItem) {
+    nodes.foreach {
+      case (rnode, count) => {
+        if (rnode.item == peekItem) {
           attachTable += Tuple2(rnode.parent, count)
           if (!rnode.parent.isRoot) {
             discardCount += count
             discardTable += Tuple2(rnode.parent, count)
           }
-        } else{
+        } else {
           discardTable += Tuple2(rnode, count)
           discardCount += count
         }
       }
     }
     val discardTableClean = discardTable.groupBy(_._1).mapValues(_.map(_._2).sum)
-//    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
-//      // ready for Root node
-//      case (rnode, count) => Tuple2(rnode.parent, count)
-//    }
-//    var discardCount = 0L
-//      // filter out all root node
-//    val discardTable = nodes.flatMap{
-//      case (rnode, count) =>
-//        if(peekItem == rnode.item){
-//          if(rnode.parent.isRoot)
-//            List.empty
-//          else {
-//            discardCount += count
-//            List(Tuple2(rnode.parent, count))
-//          }
-//        }
-//        else {
-//          discardCount += count
-//          List(Tuple2(rnode, count))
-//        }
-//    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
+    //    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
+    //      // ready for Root node
+    //      case (rnode, count) => Tuple2(rnode.parent, count)
+    //    }
+    //    var discardCount = 0L
+    //      // filter out all root node
+    //    val discardTable = nodes.flatMap{
+    //      case (rnode, count) =>
+    //        if(peekItem == rnode.item){
+    //          if(rnode.parent.isRoot)
+    //            List.empty
+    //          else {
+    //            discardCount += count
+    //            List(Tuple2(rnode.parent, count))
+    //          }
+    //        }
+    //        else {
+    //          discardCount += count
+    //          List(Tuple2(rnode, count))
+    //        }
+    //    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
-    extractHelper(finalTable, minCount, peekItem::suffix, attachTable.toList)
-    if(discardCount >= minCount){
+    extractHelper(finalTable, minCount, peekItem :: suffix, attachTable.toList)
+    if (discardCount >= minCount) {
       extractHelperCore(finalTable, minCount, suffix, discardTableClean)
     }
   }
 }
 
 class FPTree extends Serializable {
+
   import FPTree._
 
   val root: Node = new Node(null)
 
-//  private val summaries: mutable.Map[Int, Summary] = mutable.Map.empty
+  //  private val summaries: mutable.Map[Int, Summary] = mutable.Map.empty
 
-  def toRFPTree(validateSuffix: Int => Boolean = _ => true): RFPTree= {
+  def toRFPTree(validateSuffix: Int => Boolean = _ => true): RFPTree = {
     new RFPTree(validateSuffix).fromFPSubTree(root)
   }
 
@@ -217,12 +241,12 @@ class FPTree extends Serializable {
     var curr = root
     curr.count += count
     t.foreach { item =>
-//      val summary = summaries.getOrElseUpdate(item, new Summary)
-//      summary.count += count
+      //      val summary = summaries.getOrElseUpdate(item, new Summary)
+      //      summary.count += count
       val child = curr.children.getOrElseUpdate(item, {
         val newNode = new Node(curr)
         newNode.item = item
-//        summary.nodes += newNode
+        //        summary.nodes += newNode
         newNode
       })
       child.count += count
@@ -231,72 +255,73 @@ class FPTree extends Serializable {
     this
   }
 
-//  /** Merges another FP-Tree. */
-//  def merge(other: FPTree): this.type = {
-//    other.transactions.foreach { case (t, c) =>
-//      add(t, c)
-//    }
-//    this
-//  }
-//
-//  /** Gets a subtree with the suffix. */
-//  private def project(suffix: Int): FPTree = {
-//    val tree = new FPTree
-//    if (summaries.contains(suffix)) {
-//      val summary = summaries(suffix)
-//      summary.nodes.foreach { node =>
-//        var t = List.empty[Int]
-//        var curr = node.parent
-//        while (!curr.isRoot) {
-//          t = curr.item :: t
-//          curr = curr.parent
-//        }
-//        tree.add(t, node.count)
-//      }
-//    }
-//    tree
-//  }
+  //  /** Merges another FP-Tree. */
+  //  def merge(other: FPTree): this.type = {
+  //    other.transactions.foreach { case (t, c) =>
+  //      add(t, c)
+  //    }
+  //    this
+  //  }
+  //
+  //  /** Gets a subtree with the suffix. */
+  //  private def project(suffix: Int): FPTree = {
+  //    val tree = new FPTree
+  //    if (summaries.contains(suffix)) {
+  //      val summary = summaries(suffix)
+  //      summary.nodes.foreach { node =>
+  //        var t = List.empty[Int]
+  //        var curr = node.parent
+  //        while (!curr.isRoot) {
+  //          t = curr.item :: t
+  //          curr = curr.parent
+  //        }
+  //        tree.add(t, node.count)
+  //      }
+  //    }
+  //    tree
+  //  }
 
 
-//    /** Extracts all patterns with valid suffix and minimum count. */
+  //    /** Extracts all patterns with valid suffix and minimum count. */
   def extract(
                minCount: Long,
                validateSuffix: Int => Boolean = _ => true): Iterator[(List[Int], Long)] = {
-//    summaries.iterator.flatMap { case (item, summary) =>
-//      if (validateSuffix(item) && summary.count >= minCount) {
-//        Iterator.single((item :: Nil, summary.count)) ++
-//          project(item).extract(minCount).map { case (t, c) =>
-//            (item :: t, c)
-//          }
-//      } else {
-//        Iterator.empty
-//      }
-//    }
+    //    summaries.iterator.flatMap { case (item, summary) =>
+    //      if (validateSuffix(item) && summary.count >= minCount) {
+    //        Iterator.single((item :: Nil, summary.count)) ++
+    //          project(item).extract(minCount).map { case (t, c) =>
+    //            (item :: t, c)
+    //          }
+    //      } else {
+    //        Iterator.empty
+    //      }
+    //    }
     toRFPTree(validateSuffix).extract(minCount)
   }
 
-//  /** Returns all transactions in an iterator. */
-//  def transactions: Iterator[(List[Int], Long)] = getTransactions(root)
-//
-//  /** Returns all transactions under this node. */
-//  private def getTransactions(node: Node): Iterator[(List[Int], Long)] = {
-//    var count = node.count
-//    node.children.iterator.flatMap { case (item, child) =>
-//      getTransactions(child).map { case (t, c) =>
-//        count -= c
-//        (item :: t, c)
-//      }
-//    } ++ {
-//      if (count > 0) {
-//        Iterator.single((Nil, count))
-//      } else {
-//        Iterator.empty
-//      }
-//    }
-//  }
+  //  /** Returns all transactions in an iterator. */
+  //  def transactions: Iterator[(List[Int], Long)] = getTransactions(root)
+  //
+  //  /** Returns all transactions under this node. */
+  //  private def getTransactions(node: Node): Iterator[(List[Int], Long)] = {
+  //    var count = node.count
+  //    node.children.iterator.flatMap { case (item, child) =>
+  //      getTransactions(child).map { case (t, c) =>
+  //        count -= c
+  //        (item :: t, c)
+  //      }
+  //    } ++ {
+  //      if (count > 0) {
+  //        Iterator.single((Nil, count))
+  //      } else {
+  //        Iterator.empty
+  //      }
+  //    }
+  //  }
 }
 
 object FPTree {
+
   /** Representing a node in an FP-Tree. */
   class Node(val parent: Node) extends Serializable {
     var item: Int = _
@@ -311,4 +336,5 @@ object FPTree {
     var count: Long = 0L
     val nodes: ListBuffer[Node] = ListBuffer.empty
   }
+
 }
