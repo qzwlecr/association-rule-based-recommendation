@@ -25,9 +25,9 @@ import scala.collection.mutable.ListBuffer
   * and reduce memory footprint
   */
 class FPTreeMap extends Serializable{
-  private val records = new mutable.HashMap[Array[Int], Long]().withDefaultValue(0L)
+  private val records = new mutable.HashMap[List[Int], Long]()
 
-  def add(t: Array[Int], count:Long): this.type = {
+  def add(t: List[Int], count:Long): this.type = {
     if(!this.records.contains(t)){
       this.records(t) = 0
     }
@@ -59,7 +59,7 @@ class FPTreeMap extends Serializable{
 /**
   * reverse-FP-Tree data structure used in FP-Growth.
   */
-class RFPTree extends Serializable {
+class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializable {
   import RFPTree._
   private val summaries: mutable.HashMap[Int, RSummary] = mutable.HashMap.empty
   // generate a reverse FPSubTree
@@ -74,9 +74,7 @@ class RFPTree extends Serializable {
     this
   }
 
-  def extract(
-               minCount: Long,
-               validateSuffix: Int => Boolean = _ => true): Iterator[(List[Int], Long)] = {
+  def extract(minCount: Long): Iterator[(List[Int], Long)] = {
     summaries.iterator.flatMap{ case (item, summary) =>
       if(validateSuffix(item)){
         val totalList: ListBuffer[(List[Int], Long)] = mutable.ListBuffer.empty
@@ -89,6 +87,7 @@ class RFPTree extends Serializable {
     }
   }
 }
+
 
 object RFPTree extends Serializable {
   class RNode(val parent: RNode, val item: Int) extends Serializable {
@@ -157,8 +156,8 @@ class FPTree extends Serializable {
 
 //  private val summaries: mutable.Map[Int, Summary] = mutable.Map.empty
 
-  def toRFPTree: RFPTree = {
-    (new RFPTree).fromFPSubTree(root)
+  def toRFPTree(validateSuffix: Int => Boolean = _ => true): RFPTree= {
+    new RFPTree(validateSuffix).fromFPSubTree(root)
   }
 
   /** Adds a transaction with count. */
@@ -222,7 +221,7 @@ class FPTree extends Serializable {
 //        Iterator.empty
 //      }
 //    }
-    toRFPTree.extract(minCount, validateSuffix)
+    toRFPTree(validateSuffix).extract(minCount)
   }
 
 //  /** Returns all transactions in an iterator. */
