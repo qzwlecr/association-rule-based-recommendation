@@ -78,7 +78,7 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
     summaries.iterator.flatMap{ case (item, summary) =>
       if(validateSuffix(item)){
         val totalList: ListBuffer[(List[Int], Long)] = mutable.ListBuffer.empty
-        RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes)
+        RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes.toList)
         totalList
       }
       else{
@@ -107,44 +107,67 @@ object RFPTree extends Serializable {
     // TODO for better performance
   }
 
-  def extractHelper(
+  def extractHelper( finalTable: ListBuffer[(List[Int], Long)],
+               minCount: Long,
+               suffix: List[Int],
+               nodes: List[(RNode, Long)]
+             ): Unit = {
+    var nullCount = 0L
+    var validCount = 0L
+    val newNodes = nodes.flatMap{case(rnode, count) =>
+      if(rnode.isRoot){
+        nullCount += count
+        List.empty
+      }else{
+        validCount += count
+        List(Tuple2(rnode, count))
+      }
+    }
+    if(nullCount + validCount >= minCount) {
+      finalTable += Tuple2(suffix, nullCount + validCount)
+    }
+    if(validCount >= minCount){
+      extractHelperCore(finalTable, minCount, suffix, newNodes)
+    }
+  }
+
+  // if it is the core
+  // you must have clean input
+  // and you have no excuse
+  // input: RootNode is not permit
+  def extractHelperCore(
                    finalTable: ListBuffer[(List[Int], Long)],
                    minCount: Long,
                    suffix: List[Int],
-                   nodes: mutable.HashMap[RNode, Long]
+                   nodes: List[(RNode, Long)]
                    ) :Unit = {
     // TODO for better performance
-    val attachTable = new mutable.HashMap[RNode, Long]
-    var attachCount: Long = 0L
-    val discardTable = new mutable.HashMap[RNode, Long]
     val peekItem = nodes.map{_._1.item}.max
-    nodes.foreach{
+    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
+      // ready for Root node
+      case (rnode, count) => Tuple2(rnode.parent, count)
+    }
+    var discardCount = 0L
+      // filter out all root node
+    val discardTable = nodes.flatMap{
       case (rnode, count) =>
-        if(peekItem != rnode.item) {
-          discardTable.getOrElseUpdate(rnode, 0)
-          discardTable(rnode) += count
-        }
-        else if(rnode.parent == null) {
-          // this is the unique super node
-          require(nodes.size == 1)
-          finalTable += Tuple2(suffix, count)
+        if(peekItem == rnode.item){
+          if(rnode.parent.isRoot)
+            List.empty
+          else {
+            discardCount += count
+            List(Tuple2(rnode.parent, count))
+          }
         }
         else {
-          val parent = rnode.parent
-          attachTable.getOrElseUpdate(parent, 0)
-          attachTable(parent) += count
-          attachCount += count
-
-          discardTable.getOrElseUpdate(parent, 0)
-          discardTable(parent) += count
+          discardCount += count
+          List(Tuple2(rnode, count))
         }
-    }
+    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
-    if(attachCount >= minCount){
-      extractHelper(finalTable, minCount, peekItem::suffix, attachTable)
-    }
-    if(discardTable.nonEmpty){
-      extractHelper(finalTable, minCount, suffix, discardTable)
+    extractHelper(finalTable, minCount, peekItem::suffix, attachTable)
+    if(discardCount >= minCount){
+      extractHelperCore(finalTable, minCount, suffix, discardTable)
     }
   }
 }
