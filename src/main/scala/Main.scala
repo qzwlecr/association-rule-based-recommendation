@@ -9,23 +9,34 @@ package AR {
         if (args.length == 0) ("data/input", "data/output", "data/tmp")
         else (args(0), args(1), args(2))
 
+
       val conf = new SparkConf().setAppName("Association Rules")
         .setMaster("local[2]")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
         .set("spark.network.timeout", "3000")
         .set("spark.kryoserializer.buffer.max", "2047m")
         .set("spark.executor.extraJavaOptions", "-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:ThreadStackSize=2048 -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75")
+        .set("spark.hadoop.validateOutputSpecs", "false")
       conf.registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth]))
       val sc = new SparkContext(conf)
-      val originData = sc.textFile(fileInput + "/D.dat")
-        .sample(false, 0.01, 810L)
+      val originData = sc
+        .parallelize(Array(
+          "1 2 3 4 5",
+          "1 2 3 4",
+          "1 2 3",
+          "1 2",
+          "1"
+        ))
+//        .textFile(fileInut + "/D_sample.dat")
+//        .textFile(fileInput + "/D.dat").sample(false, 0.02, 810L)
 
       val transactions = originData.map(
         _.trim.split(' ').map(_.toInt)
       ).cache()
 
       val model = new FPGrowth()
-        .setMinSupport(0.092)
+//        .setMinSupport(0.092)
+        .setMinSupport(0.01)
         .run(transactions)
 
       model.freqItemsets.map(
