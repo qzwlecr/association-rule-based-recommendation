@@ -162,7 +162,7 @@ class FPGrowth private(
     }
       .aggregateByKey(new FPTreeMap, partitioner.numPartitions)(
 //      .aggregateByKey(new FPTree, partitioner.numPartitions)(
-      (tree, transaction) => tree.add(transaction, 1L),
+      (tree, transaction) => tree.add(transaction.toList, 1L),
       (tree1, tree2) => tree1.merge(tree2))
       .map{x => (x._1, x._2.toFPTree)}
       .flatMap { case (part, tree) =>
