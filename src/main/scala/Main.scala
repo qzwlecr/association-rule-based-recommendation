@@ -17,10 +17,7 @@ package AR {
         .set("spark.kryoserializer.buffer.max", "2047m")
         .set("spark.executor.extraJavaOptions", "-XX:ThreadStackSize=2048 -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75")
         .set("spark.hadoop.validateOutputSpecs", "false")
-        .set("spark.memory.offHeap.enabled", "true")
-        .set("spark.memory.offHeap.size", "10g")
-        .set("spark.memory.useLegacyMode","true")
-        .set("spark.shuffle.memoryFraction","0.5")
+        .set("spark.local.dir",fileTemp)
         .registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth], classOf[FPTreeMap], classOf[RFPTree]))
       val sc = new SparkContext(conf)
       val originData = sc.textFile(fileInput + "/D.dat", 336)
@@ -29,7 +26,7 @@ package AR {
         _.trim
           .split(' ')
           .map(_.toInt)
-      }.persist(StorageLevel.MEMORY_ONLY_SER)
+      }.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
       val model = new FPGrowth()
         .setMinSupport(0.092)
@@ -38,7 +35,6 @@ package AR {
       model.freqItemsets.map {
         _.items
           .reverse
-          .sortBy(x => x)
           .mkString(" ")
       }
         .sortBy(x => x)
