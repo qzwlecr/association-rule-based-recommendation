@@ -17,16 +17,19 @@ package AR {
         .set("spark.kryoserializer.buffer.max", "2047m")
         .set("spark.executor.extraJavaOptions", "-XX:ThreadStackSize=2048 -XX:+UseCompressedOops -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75")
         .set("spark.hadoop.validateOutputSpecs", "false")
-        .set("spark.local.dir",fileTemp)
+        .set("spark.local.dir", "/tmp")
         .registerKryoClasses(Array(classOf[FPTree], classOf[FPGrowth], classOf[FPTreeMap], classOf[RFPTree]))
       val sc = new SparkContext(conf)
-      val originData = sc.textFile(fileInput + "/D.dat", 336)
+      sc.setCheckpointDir(fileTemp)
+      val originData = sc.textFile(fileInput + "/D.dat", 576)
 
       val transactions = originData.map {
         _.trim
           .split(' ')
           .map(_.toInt)
       }.persist(StorageLevel.MEMORY_AND_DISK_SER)
+
+      transactions.checkpoint()
 
       val model = new FPGrowth()
         .setMinSupport(0.092)
