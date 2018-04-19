@@ -19,13 +19,14 @@ package AR
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.HashMap
 
 /**
   * FP-Tree-Map data structure to privide info for FP-Tree
   * and reduce memory footprint
   */
 class FPTreeMap extends Serializable {
-  private val records = new mutable.HashMap[List[Int], Long]()
+  private val records = new HashMap[List[Int], Long]()
 
   def add(t: List[Int], count: Long): this.type = {
     if (!this.records.contains(t)) {
@@ -71,7 +72,7 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
       val curr = new RNode(parent, item)
       if (validateSuffix(item)) {
         val summary = summaries.getOrElseUpdate(item, new RSummary)
-        summary.nodes.update(parent, node.count + summary.nodes.getOrElseUpdate(parent, 0));
+        summary.nodes += Tuple2(parent, node.count);
       }
       fromFPSubTree(node, curr)
     }
@@ -82,7 +83,7 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
     summaries.iterator.flatMap { case (item, summary) =>
       if (validateSuffix(item)) {
         val totalList: ListBuffer[(List[Int], Long)] = mutable.ListBuffer.empty
-        RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes.toList)
+        RFPTree.extractHelper(totalList, minCount, List(item), summary.nodes)
         totalList
       }
       else {
@@ -101,7 +102,7 @@ object RFPTree extends Serializable {
 
   /** store Item(parent, count) */
   class RSummary extends Serializable {
-    val nodes: mutable.ListMap[RNode, Long] = mutable.ListMap.empty
+    val nodes: mutable.ListBuffer[(RNode, Long)] = ListBuffer.empty
   }
 
   def power[T](rawList: List[T], initial: List[T]) = {
@@ -150,7 +151,7 @@ object RFPTree extends Serializable {
         listBuf += iter.item
         iter = iter.parent
       }
-      val _::tail = power(listBuf.toList, suffix).map(Tuple2(_, count))
+      val _ :: tail = power(listBuf.toList, suffix).map(Tuple2(_, count))
       finalTable ++= tail
     }
   }
@@ -158,7 +159,7 @@ object RFPTree extends Serializable {
   def extractHelper(finalTable: ListBuffer[(List[Int], Long)],
                     minCount: Long,
                     suffix: List[Int],
-                    nodes: collection.immutable.Iterable[(RNode, Long)]
+                    nodes: ListBuffer[(RNode, Long)]
                    ): Unit = {
     if (nodes.size == 1) {
       val (rnode, count) = nodes.head
@@ -169,13 +170,13 @@ object RFPTree extends Serializable {
     else {
       var nullCount = 0L
       var validCount = 0L
-      val newNodes = new ListBuffer[(RNode, Long)]
+      val newNodes: mutable.Map[Int, ListBuffer[(RNode, Long)]] = mutable.Map.empty
       nodes.foreach { case (rnode, count) =>
         if (rnode.isRoot) {
           nullCount += count
         } else {
           validCount += count
-          newNodes += Tuple2(rnode, count)
+          newNodes.getOrElseUpdate(rnode.item, ListBuffer.empty) += Tuple2(rnode, count)
         }
       }
       //    val newNodes = nodes.flatMap{case(rnode, count) =>
@@ -191,7 +192,7 @@ object RFPTree extends Serializable {
         finalTable += Tuple2(suffix, nullCount + validCount)
       }
       if (validCount >= minCount) {
-        extractHelperCore(finalTable, minCount, suffix, newNodes.toList)
+        extractHelperCore(finalTable, minCount, validCount, suffix, newNodes)
       }
     }
   }
@@ -203,37 +204,37 @@ object RFPTree extends Serializable {
   def extractHelperCore(
                          finalTable: ListBuffer[(List[Int], Long)],
                          minCount: Long,
+                         currentCount: Long,
                          suffix: List[Int],
-                         nodes: collection.immutable.Iterable[(RNode, Long)]
+                         // RNode grouped by item
+                         nodes: mutable.Map[Int, ListBuffer[(RNode, Long)]]
                        ): Unit = {
     // TODO for better performance
-    if (nodes.size == 1) {
-      val (rnode, count) = nodes.head
+    val peekItem = nodes.keys.max
+    val attachTable = new ListBuffer[(RNode, Long)]
+    val target = nodes(peekItem).groupBy(_._1).mapValues(_.map(_._2).sum)
+    var newCount = currentCount
+    if (nodes.size == 1 && target.size == 1) {
+      val (rnode, count) = target.head
       if (count >= minCount) {
         extractChainExclusive(finalTable, suffix, rnode, count)
       }
     } else {
-      val peekItem = nodes.map {
-        _._1.item
-      }.max
-      val attachTable = new ListBuffer[(RNode, Long)]
-      val discardTable = new ListBuffer[(RNode, Long)]
-      var discardCount = 0L
-      nodes.foreach {
+      target.foreach {
         case (rnode, count) => {
           if (rnode.item == peekItem) {
+            val parent = rnode.parent
             attachTable += Tuple2(rnode.parent, count)
-            if (!rnode.parent.isRoot) {
-              discardCount += count
-              discardTable += Tuple2(rnode.parent, count)
+            if (!parent.isRoot) {
+              nodes.getOrElseUpdate(parent.item, ListBuffer.empty) += Tuple2(parent, count)
+            } else {
+              newCount -= count
             }
-          } else {
-            discardTable += Tuple2(rnode, count)
-            discardCount += count
           }
         }
       }
-      val discardTableClean = discardTable.groupBy(_._1).mapValues(_.map(_._2).sum)
+
+      nodes -= peekItem
       //    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
       //      // ready for Root node
       //      case (rnode, count) => Tuple2(rnode.parent, count)
@@ -256,9 +257,9 @@ object RFPTree extends Serializable {
       //        }
       //    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
-      extractHelper(finalTable, minCount, peekItem :: suffix, attachTable.toList)
-      if (discardCount >= minCount) {
-        extractHelperCore(finalTable, minCount, suffix, discardTableClean)
+      extractHelper(finalTable, minCount, peekItem :: suffix, attachTable)
+      if(newCount >= minCount){
+        extractHelperCore(finalTable, minCount, newCount, suffix, nodes)
       }
     }
   }
