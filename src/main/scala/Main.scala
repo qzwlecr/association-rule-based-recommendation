@@ -33,12 +33,10 @@ package AR {
         .run(transactions)
 
       model.freqItemsets.map {
-        _.items
-          .reverse
-          .mkString(" ")
-      }
-        .sortBy(x => x)
-        .saveAsTextFile(fileOutput + "/D.dat")
+        _.items.reverse
+      }.sortBy(x => x).map{
+        _.mkString(" ")
+      }.saveAsTextFile(fileOutput + "/D.dat")
 
       val itemsWithFreq = model.freqItemsets.map(
         x => (x.items.toList, x.freq)
