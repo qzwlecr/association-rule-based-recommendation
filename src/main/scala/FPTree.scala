@@ -69,8 +69,10 @@ class RFPTree(val validateSuffix: Int => Boolean = _ => true) extends Serializab
   def fromFPSubTree(subTree: FPTree.Node, parent: RNode = new RNode(null, -1)): this.type = {
     subTree.children.foreach { case (item, node) =>
       val curr = new RNode(parent, item)
-      val summary = summaries.getOrElseUpdate(item, new RSummary)
-      summary.nodes.update(parent, node.count + summary.nodes.getOrElseUpdate(parent, 0));
+      if (validateSuffix(item)) {
+        val summary = summaries.getOrElseUpdate(item, new RSummary)
+        summary.nodes.update(parent, node.count + summary.nodes.getOrElseUpdate(parent, 0));
+      }
       fromFPSubTree(node, curr)
     }
     this
@@ -99,7 +101,7 @@ object RFPTree extends Serializable {
 
   /** store Item(parent, count) */
   class RSummary extends Serializable {
-    val nodes: mutable.HashMap[RNode, Long] = mutable.HashMap.empty
+    val nodes: mutable.ListMap[RNode, Long] = mutable.ListMap.empty
   }
 
   def power[T](rawList: List[T], initial: List[T]) = {
@@ -117,17 +119,40 @@ object RFPTree extends Serializable {
                     suffix: List[Int],
                     rnode: RNode,
                     count: Long
-                  ):Unit = {
+                  ): Unit = {
     // TODO for better performance
     val listBuf = new ListBuffer[Int]
     var iter = rnode
     // generate list in reverse order
     while (!iter.isRoot) {
-//      println("fuck", listBuf.toList)
+      //      println("fuck", listBuf.toList)
       listBuf += iter.item
       iter = iter.parent
     }
     finalTable ++= power(listBuf.toList, suffix).map(Tuple2(_, count))
+  }
+
+  def extractChainExclusive(
+                             finalTable: ListBuffer[(List[Int], Long)],
+                             suffix: List[Int],
+                             rnode: RNode,
+                             count: Long
+                           ): Unit = {
+    if (rnode.parent.isRoot) {
+      finalTable += Tuple2(rnode.item :: suffix, count)
+    }
+    else {
+      val listBuf = new ListBuffer[Int]
+      var iter = rnode
+      // generate list in reverse order
+      while (!iter.isRoot) {
+        //      println("fuck", listBuf.toList)
+        listBuf += iter.item
+        iter = iter.parent
+      }
+      val _::tail = power(listBuf.toList, suffix).map(Tuple2(_, count))
+      finalTable ++= tail
+    }
   }
 
   def extractHelper(finalTable: ListBuffer[(List[Int], Long)],
@@ -137,7 +162,7 @@ object RFPTree extends Serializable {
                    ): Unit = {
     if (nodes.size == 1) {
       val (rnode, count) = nodes.head
-      if(count >= minCount) {
+      if (count >= minCount) {
         extractChain(finalTable, suffix, rnode, count)
       }
     }
@@ -182,52 +207,59 @@ object RFPTree extends Serializable {
                          nodes: collection.immutable.Iterable[(RNode, Long)]
                        ): Unit = {
     // TODO for better performance
-    val peekItem = nodes.map {
-      _._1.item
-    }.max
-    val attachTable = new ListBuffer[(RNode, Long)]
-    val discardTable = new ListBuffer[(RNode, Long)]
-    var discardCount = 0L
-    nodes.foreach {
-      case (rnode, count) => {
-        if (rnode.item == peekItem) {
-          attachTable += Tuple2(rnode.parent, count)
-          if (!rnode.parent.isRoot) {
+    if (nodes.size == 1) {
+      val (rnode, count) = nodes.head
+      if (count >= minCount) {
+        extractChainExclusive(finalTable, suffix, rnode, count)
+      }
+    } else {
+      val peekItem = nodes.map {
+        _._1.item
+      }.max
+      val attachTable = new ListBuffer[(RNode, Long)]
+      val discardTable = new ListBuffer[(RNode, Long)]
+      var discardCount = 0L
+      nodes.foreach {
+        case (rnode, count) => {
+          if (rnode.item == peekItem) {
+            attachTable += Tuple2(rnode.parent, count)
+            if (!rnode.parent.isRoot) {
+              discardCount += count
+              discardTable += Tuple2(rnode.parent, count)
+            }
+          } else {
+            discardTable += Tuple2(rnode, count)
             discardCount += count
-            discardTable += Tuple2(rnode.parent, count)
           }
-        } else {
-          discardTable += Tuple2(rnode, count)
-          discardCount += count
         }
       }
-    }
-    val discardTableClean = discardTable.groupBy(_._1).mapValues(_.map(_._2).sum)
-    //    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
-    //      // ready for Root node
-    //      case (rnode, count) => Tuple2(rnode.parent, count)
-    //    }
-    //    var discardCount = 0L
-    //      // filter out all root node
-    //    val discardTable = nodes.flatMap{
-    //      case (rnode, count) =>
-    //        if(peekItem == rnode.item){
-    //          if(rnode.parent.isRoot)
-    //            List.empty
-    //          else {
-    //            discardCount += count
-    //            List(Tuple2(rnode.parent, count))
-    //          }
-    //        }
-    //        else {
-    //          discardCount += count
-    //          List(Tuple2(rnode, count))
-    //        }
-    //    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
+      val discardTableClean = discardTable.groupBy(_._1).mapValues(_.map(_._2).sum)
+      //    val attachTable = nodes.withFilter(_._1.item == peekItem).map{
+      //      // ready for Root node
+      //      case (rnode, count) => Tuple2(rnode.parent, count)
+      //    }
+      //    var discardCount = 0L
+      //      // filter out all root node
+      //    val discardTable = nodes.flatMap{
+      //      case (rnode, count) =>
+      //        if(peekItem == rnode.item){
+      //          if(rnode.parent.isRoot)
+      //            List.empty
+      //          else {
+      //            discardCount += count
+      //            List(Tuple2(rnode.parent, count))
+      //          }
+      //        }
+      //        else {
+      //          discardCount += count
+      //          List(Tuple2(rnode, count))
+      //        }
+      //    }.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
-    extractHelper(finalTable, minCount, peekItem :: suffix, attachTable.toList)
-    if (discardCount >= minCount) {
-      extractHelperCore(finalTable, minCount, suffix, discardTableClean)
+      extractHelper(finalTable, minCount, peekItem :: suffix, attachTable.toList)
+      if (discardCount >= minCount) {
+        extractHelperCore(finalTable, minCount, suffix, discardTableClean)
+      }
     }
   }
 }
